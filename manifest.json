@@ -9,8 +9,14 @@
         "name": "titoko",
         "email": "titoko@titoko.fr",
         "url": "http://dev.yunohost.org"
-    },
-    "multi_instance": "true",
+	},
+    "multi_instance": false,
+    "services": [
+        "mysql"
+    ],
+    "requirements": {
+        "yunohost": ">= 2.6.4"
+	},
     "arguments": {
         "install" : [
         {
