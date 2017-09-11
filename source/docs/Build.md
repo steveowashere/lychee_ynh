@@ -2,19 +2,20 @@
 
 First you have to install the following dependencies:
 
-- [CSS Optimizer](https://github.com/css/csso) `csso`
-- [UglifyJS](https://github.com/mishoo/UglifyJS2) `uglifyjs`
+- `node` [Node.js](http://nodejs.org) v5.7.0 or later
+- `npm` [Node Packaged Modules](https://www.npmjs.org)
 
-These dependencies can be installed using `npm`:
+After [installing Node.js](http://nodejs.org) you can use the included `npm` package manager to download all dependencies:
 
-	npm install csso uglify-js -g;
-	
+	cd src/
+	npm install
+
 ### Build
 
-The Makefile is located in `etc/` and can be easily executed, using the following command. Make sure your run this from the root of Lychee:
+The Gulpfile is located in `src/` and can be executed using the `npm run compile` command.
 
-	make -f etc/Makefile
-	
-### Use uncompressed files
+### Watch for changes
 
-While developing, you might want to use the uncompressed files. This is possible by editing the `index.html`. Simply change the linked CSS and JS files. There are already out-commented link-tags for development and production.
+While developing, you might want to use the following command to automatically build Lychee everytime you save a file:
+
+	npm start

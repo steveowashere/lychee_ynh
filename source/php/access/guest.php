@@ -1,125 +1,184 @@
 <?php
 
-/**
- * @name		Guest Access (Public Mode)
- * @author		Tobias Reich
- * @copyright	2014 by Tobias Reich
- */
+namespace Lychee\Access;
 
-if (!defined('LYCHEE')) exit('Error: Direct access is not allowed!');
-if (!defined('LYCHEE_ACCESS_GUEST')) exit('Error: You are not allowed to access this area!');
+use Lychee\Modules\Album;
+use Lychee\Modules\Albums;
+use Lychee\Modules\Photo;
+use Lychee\Modules\Response;
+use Lychee\Modules\Session;
+use Lychee\Modules\Validator;
 
-switch ($_POST['function']) {
+final class Guest extends Access {
 
-	// Album Functions
+	public static function init($fn) {
 
-	case 'getAlbums':		echo json_encode(getAlbums(true));
-							break;
+		switch ($fn) {
 
-	case 'getAlbum':		if (isset($_POST['albumID'], $_POST['password'])) {
-								if (isAlbumPublic($_POST['albumID'])) {
-									// Album Public
-									if (checkAlbumPassword($_POST['albumID'], $_POST['password']))
-										echo json_encode(getAlbum($_POST['albumID']));
-									else
-										echo 'Warning: Wrong password!';
-								} else {
-									// Album Private
-									echo 'Warning: Album private!';
-								}
-							}
-							break;
+			// Albums functions
+			case 'Albums::get':       self::getAlbumsAction(); break;
 
-	case 'checkAlbumAccess':if (isset($_POST['albumID'], $_POST['password'])) {
-								if (isAlbumPublic($_POST['albumID'])) {
-									// Album Public
-									if (checkAlbumPassword($_POST['albumID'], $_POST['password']))
-										echo true;
-									else
-										echo false;
-								} else {
-									// Album Private
-									echo false;
-								}
-							}
-							break;
+			// Album functions
+			case 'Album::get':        self::getAlbumAction(); break;
+			case 'Album::getPublic':  self::checkAlbumAccessAction(); break;
 
-	// Photo Functions
+			// Photo functions
+			case 'Photo::get':        self::getPhotoAction(); break;
 
-	case 'getPhoto':		if (isset($_POST['photoID'], $_POST['albumID'], $_POST['password'])) {
-								if (isPhotoPublic($_POST['photoID'], $_POST['password']))
-									echo json_encode(getPhoto($_POST['photoID'], $_POST['albumID']));
-								else
-									echo 'Warning: Wrong password!';
-							}
-							break;
+			// Session functions
+			case 'Session::init':     self::initAction(); break;
+			case 'Session::login':    self::loginAction(); break;
+			case 'Session::logout':   self::logoutAction(); break;
 
-	// Session Functions
+			// $_GET functions
+			case 'Album::getArchive': self::getAlbumArchiveAction(); break;
+			case 'Photo::getArchive': self::getPhotoArchiveAction(); break;
 
-	case 'init':			echo json_encode(init('public', $_POST['version']));
-							break;
+		}
 
-	case 'login':			if (isset($_POST['user'], $_POST['password']))
-								echo login($_POST['user'], $_POST['password']);
-							break;
+		self::fnNotFound();
 
-	// Miscellaneous
+	}
 
-	default:				switch ($_GET['function']) {
+	// Albums functions
 
-								case 'getFeed':				if (isset($_GET['albumID'], $_GET['password'])) {
+	private static function getAlbumsAction() {
 
-																// Album Feed
-																if (isAlbumPublic($_GET['albumID'])) {
-																	// Album Public
-																	if (checkAlbumPassword($_GET['albumID'], $_GET['password']))
-																		echo getFeed($_GET['albumID']);
-																	else
-																		exit('Warning: Wrong password!');
-																} else {
-																	// Album Private
-																	exit('Warning: Album private!');
-																}
+		$albums = new Albums();
+		Response::json($albums->get(true));
 
-															}
-															break;
+	}
 
-								case 'getAlbumArchive':		if (isset($_GET['albumID'], $_GET['password'])) {
+	// Album functions
 
-																// Album Download
-																if (isAlbumPublic($_GET['albumID'])) {
-																	// Album Public
-																	if (checkAlbumPassword($_GET['albumID'], $_GET['password']))
-																		getAlbumArchive($_GET['albumID']);
-																	else
-																		exit('Warning: Wrong password!');
-																} else {
-																	// Album Private
-																	exit('Warning: Album private or not downloadable!');
-																}
+	private static function getAlbumAction() {
 
-															}
-															break;
+		Validator::required(isset($_POST['albumID'], $_POST['password']), __METHOD__);
 
-								case 'getPhotoArchive':		if (isset($_GET['photoID'], $_GET['password'])) {
+		$album = new Album($_POST['albumID']);
 
-																// Photo Download
-																if (isPhotoPublic($_GET['photoID'], $_GET['password']))
-																	// Photo Public
-																	getPhotoArchive($_GET['photoID']);
-																else
-																	// Photo Private
-																	exit('Warning: Photo private or not downloadable!');
+		if ($album->getPublic()===true) {
 
-															}
-															break;
+			// Album public
+			if ($album->checkPassword($_POST['password'])===true) Response::json($album->get());
+			else                                                  Response::warning('Wrong password!');
 
-								default:					exit('Error: Function not found! Please check the spelling of the called function.');
-															break;
+		} else {
 
-							}
+			// Album private
+			Response::warning('Album private!');
 
-							break;
+		}
+
+	}
+
+	private static function checkAlbumAccessAction() {
+
+		Validator::required(isset($_POST['albumID'], $_POST['password']), __METHOD__);
+
+		$album = new Album($_POST['albumID']);
+
+		if ($album->getPublic()===true) {
+
+			// Album public
+			if ($album->checkPassword($_POST['password'])===true) Response::json(true);
+			else                                                  Response::json(false);
+
+		} else {
+
+			// Album private
+			Response::json(false);
+
+		}
+
+	}
+
+	// Photo functions
+
+	private static function getPhotoAction() {
+
+		Validator::required(isset($_POST['photoID'], $_POST['albumID'], $_POST['password']), __METHOD__);
+
+		$photo = new Photo($_POST['photoID']);
+
+		$pgP = $photo->getPublic($_POST['password']);
+
+		if ($pgP===2)      Response::json($photo->get($_POST['albumID']));
+		else if ($pgP===1) Response::warning('Wrong password!');
+		else if ($pgP===0) Response::warning('Photo private!');
+
+	}
+
+	// Session functions
+
+	private static function initAction() {
+
+		$session = new Session();
+		Response::json($session->init(true));
+
+	}
+
+	private static function loginAction() {
+
+		Validator::required(isset($_POST['user'], $_POST['password']), __METHOD__);
+
+		$session = new Session();
+		Response::json($session->login($_POST['user'], $_POST['password']));
+
+	}
+
+	private static function logoutAction() {
+
+		$session = new Session();
+		Response::json($session->logout());
+
+	}
+
+	// $_GET functions
+
+	private static function getAlbumArchiveAction() {
+
+		Validator::required(isset($_GET['albumID'], $_GET['password']), __METHOD__);
+
+		$album = new Album($_GET['albumID']);
+
+		if ($album->getPublic()&&$album->getDownloadable()) {
+
+			// Album Public
+			if ($album->checkPassword($_GET['password'])) $album->getArchive();
+			else                                          Response::warning('Wrong password!');
+
+		} else {
+
+			// Album Private
+			Response::warning('Album private or not downloadable!');
+
+		}
+
+	}
+
+	private static function getPhotoArchiveAction() {
+
+		Validator::required(isset($_GET['photoID'], $_GET['password']), __METHOD__);
+
+		$photo = new Photo($_GET['photoID']);
+
+		$pgP = $photo->getPublic($_GET['password']);
+
+		// Photo Download
+		if ($pgP===2) {
+
+			// Photo Public
+			$photo->getArchive();
+
+		} else {
+
+			// Photo Private
+			Response::warning('Photo private or password incorrect!');
+
+		}
+
+	}
 
 }
 
