@@ -10,9 +10,10 @@
         "email": "titoko@titoko.fr",
         "url": "http://dev.yunohost.org"
 	},
-    "multi_instance": false,
+    "multi_instance": true,
     "services": [
         "nginx",
+	"php5-fpm",
         "mysql"
     ],
     "requirements": {
